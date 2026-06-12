@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unificador de Guias · Centro Clínico Okazaki</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo-mark">U</div>
+      <div>
+        <p class="eyebrow">Centro Clínico Okazaki</p>
+        <h1>Unificador de Guias Unimed</h1>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span id="ocrBadge" class="pill pill-muted" title="Estado do OCR">OCR…</span>
+      <button class="btn btn-ghost" id="btnConfig">Configurações</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Banner de atualização (só aparece no .exe quando há versão nova) -->
+    <div id="updateBanner" class="update-banner hidden">
+      <span class="ub-ico">⬆</span>
+      <div class="ub-txt"><b>Atualização disponível</b> — versão <span id="ubVersao"></span></div>
+      <button class="btn btn-primary btn-sm" id="ubAtualizar">Atualizar agora</button>
+      <button class="btn btn-ghost btn-sm" id="ubDepois">Depois</button>
+    </div>
+
+    <!-- Barra de ferramentas -->
+    <section class="card toolbar">
+      <div class="filtros">
+        <div class="field">
+          <label class="lbl">Ano</label>
+          <select id="filtroAno"><option value="">Todos</option></select>
+        </div>
+        <div class="field">
+          <label class="lbl">Mês</label>
+          <select id="filtroMes"><option value="">Todos</option></select>
+        </div>
+        <div class="field field-busca">
+          <label class="lbl">Buscar paciente</label>
+          <div class="busca-wrap">
+            <span class="busca-ico" aria-hidden="true">⌕</span>
+            <input type="text" id="filtroNome" placeholder="Nome do paciente…" autocomplete="off" />
+            <button type="button" id="btnLimparBusca" class="busca-clear hidden" title="Limpar" aria-label="Limpar busca">×</button>
+          </div>
+        </div>
+        <button class="btn btn-secondary" id="btnEscanear">↻ Escanear</button>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-secondary" id="btnNovo">+ Novo paciente</button>
+        <button class="btn btn-primary" id="btnUnirLote" disabled>
+          Unir selecionados <span id="selCount" class="count">0</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Abas -->
+    <div class="tabs">
+      <button class="tab is-active" data-tab="pacientes">Pacientes <span id="tabCountPac" class="count">0</span></button>
+      <button class="tab" data-tab="erros">Erros / Pendências <span id="tabCountErr" class="count count-danger">0</span></button>
+    </div>
+
+    <!-- Pacientes -->
+    <section id="tabPacientes" class="tabpane is-active">
+      <div class="card tablecard">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th class="col-check"><input type="checkbox" id="checkAll" /></th>
+              <th>Paciente</th>
+              <th>Período</th>
+              <th>Tipo de exame</th>
+              <th>Documentos</th>
+              <th>Status</th>
+              <th>Nº da Guia</th>
+              <th class="col-acoes">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div id="vazio" class="vazio hidden">
+          Nenhum paciente neste período. Crie um paciente em <b>+ Novo paciente</b>.
+        </div>
+      </div>
+    </section>
+
+    <!-- Erros -->
+    <section id="tabErros" class="tabpane">
+      <div class="card">
+        <ul id="listaErros" class="erros"></ul>
+        <div id="semErros" class="vazio hidden">Sem pendências. Tudo certo. ✔</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Modal: Novo paciente -->
+  <div class="modal hidden" id="modalNovo">
+    <div class="modal-box">
+      <h3>Novo paciente</h3>
+      <p class="muted">Cria a estrutura de pastas e, opcionalmente, já recebe os PDFs.</p>
+      <div class="grid2">
+        <div class="field"><label class="lbl">Ano</label><input id="npAno" placeholder="2026" /></div>
+        <div class="field"><label class="lbl">Mês</label>
+          <select id="npMes"></select>
+        </div>
+      </div>
+      <div class="field"><label class="lbl">Nome do paciente</label><input id="npNome" placeholder="FERNANDA DOS SANTOS VAZ" /></div>
+      <div class="field"><label class="lbl">Tipo de exame</label>
+        <select id="npTipo">
+          <option value="">Selecione…</option>
+          <option value="endoscopia">Endoscopia (7 folhas)</option>
+          <option value="colonoscopia">Colonoscopia (6 folhas)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="lbl">PDFs (opcional — pode arrastar 1.pdf … N.pdf)</label>
+        <input type="file" id="npFiles" accept="application/pdf" multiple />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close>Cancelar</button>
+        <button class="btn btn-primary" id="npSalvar">Criar paciente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Enviar PDFs -->
+  <div class="modal hidden" id="modalUpload">
+    <div class="modal-box">
+      <h3>Enviar documentos</h3>
+      <p class="muted" id="upPaciente"></p>
+      <p class="muted">Os arquivos são numerados na ordem em que aparecem. Envie do 1 ao último na ordem correta, ou nomeie os arquivos como <b>1.pdf, 2.pdf…</b></p>
+      <div class="field">
+        <input type="file" id="upFiles" accept="application/pdf" multiple />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close>Cancelar</button>
+        <button class="btn btn-primary" id="upEnviar">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Guia manual -->
+  <div class="modal hidden" id="modalGuia">
+    <div class="modal-box">
+      <h3>Informar Nº da Guia manualmente</h3>
+      <p class="muted" id="gmPaciente"></p>
+      <p class="muted">O OCR não conseguiu ler o número no 1.pdf. Digite o <b>Nº da Guia no Prestador</b>.</p>
+      <div class="field"><input id="gmNumero" placeholder="Apenas números" inputmode="numeric" /></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close>Cancelar</button>
+        <button class="btn btn-primary" id="gmUnir">Unir com este número</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Apagar paciente (confirmação) -->
+  <div class="modal hidden" id="modalApagar">
+    <div class="modal-box">
+      <div class="alerta-head">
+        <span class="alerta-ico">⚠</span>
+        <h3>Apagar paciente?</h3>
+      </div>
+      <p class="muted">Esta ação é <b>permanente</b> e não pode ser desfeita.</p>
+      <div class="apagar-resumo" id="apResumo"></div>
+      <p class="muted">Serão apagados <b>todos os documentos enviados</b> e o PDF unificado deste paciente.</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close>Cancelar</button>
+        <button class="btn btn-danger" id="apConfirmar">Apagar definitivamente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Config -->
+  <div class="modal hidden" id="modalConfig">
+    <div class="modal-box">
+      <h3>Configurações</h3>
+      <div class="field">
+        <label class="lbl">Pasta base (Guias Unimed)</label>
+        <input id="cfgBase" />
+        <p class="muted" style="margin-top:6px">Toda a árvore <b>{ano}/{mês}/{paciente}/inputs</b> fica aqui.</p>
+      </div>
+      <div class="field">
+        <label class="lbl">OCR (Tesseract)</label>
+        <input id="cfgTess" readonly />
+      </div>
+      <div class="field">
+        <label class="lbl">Versão</label>
+        <div class="versao-row">
+          <input id="cfgVersao" readonly />
+          <button class="btn btn-secondary btn-sm" id="cfgBuscarUpd">Buscar atualização</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close>Fechar</button>
+        <button class="btn btn-primary" id="cfgSalvar">Salvar pasta</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

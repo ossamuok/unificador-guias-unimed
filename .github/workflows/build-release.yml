@@ -1,0 +1,49 @@
+name: build-release
+
+# Dispara ao enviar uma tag de versão (ex.: git tag v1.0.1 && git push --tags).
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}   # permite rodar manualmente pela aba Actions
+
+permissions:
+  contents: write   # necessário para criar o release
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      - name: Instalar Tesseract (OCR)
+        run: choco install tesseract -y --no-progress
+
+      - name: Embutir Tesseract no pacote (app standalone)
+        shell: pwsh
+        run: |
+          $src = "C:\Program Files\Tesseract-OCR"
+          if (Test-Path $src) {
+            Copy-Item $src -Destination "tesseract" -Recurse
+            Write-Host "Tesseract copiado para .\tesseract"
+          } else {
+            Write-Warning "Tesseract nao encontrado; exe dependera de instalacao no PC."
+          }
+
+      - name: Empacotar (PyInstaller)
+        run: python -m PyInstaller --noconfirm unificador.spec
+
+      - name: Publicar Release com o .exe
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/UnificadorGuias.exe
+          generate_release_notes: true

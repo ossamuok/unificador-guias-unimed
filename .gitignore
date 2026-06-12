@@ -1,0 +1,17 @@
+# Dados do usuário (nunca versionar guias de pacientes)
+Guias Unimed/
+config.json
+
+# Build / artefatos
+build/
+dist/
+*.spec.bak
+tesseract/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+
+# Exemplos (PDFs reais de pacientes — não subir)
+EXEMPLOS/
