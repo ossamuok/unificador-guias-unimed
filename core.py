@@ -146,6 +146,89 @@ def extract_guia_number(pdf_path: str | Path, tesseract: str | None = None) -> s
     return None
 
 
+# Letras maiúsculas com acento (nomes em PT-BR no formulário TISS)
+_UP = "A-ZÁÉÍÓÚÂÊÔÃÕÀÇ"
+
+
+def _render_page(pdf_path: str | Path, target_w: int = 3000) -> Image.Image:
+    """Renderiza a 1ª página inteira com largura-alvo controlada (para OCR amplo)."""
+    doc = fitz.open(str(pdf_path))
+    try:
+        page = doc[0]
+        zoom = max(target_w / page.rect.width, 1.0)
+        pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom))
+        return Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+    finally:
+        doc.close()
+
+
+def _guia_from_text(text: str) -> str | None:
+    for line in text.splitlines():
+        if re.search(r"PRESTADOR", line, re.I):
+            digits = re.findall(r"\d{10,}", re.sub(r"\s+", "", line))
+            if digits:
+                return max(digits, key=len)
+    alld = re.findall(r"\d{14,}", re.sub(r"\s+", "", text))
+    return max(alld, key=len) if alld else None
+
+
+def _nome_from_text(text: str) -> str | None:
+    """Nome do beneficiário (campo 10): nº da carteira (16-18 díg) + nome maiúsculo.
+    O nº da guia (20 díg) não casa porque não é seguido de letras."""
+    for m in re.finditer(r"\b\d{16,18}\s+([" + _UP + r"][" + _UP + r" ]{4,})", text):
+        cand = re.sub(r"\s+", " ", m.group(1)).strip()
+        cand = re.sub(r"\s+[A-Z]$", "", cand).strip()   # tira flag RN (N/S) no fim
+        if " " in cand and len(cand) >= 6:
+            return cand
+    return None
+
+
+def _data_from_text(text: str) -> str | None:
+    """Data do exame (campo 36 - Data de Execução): data seguida de hora (HH:MM).
+    Fallback: Data da Autorização."""
+    m = re.search(r"(\d{2}/\d{2}/\d{4})\s+\d{1,2}:\d{2}", text)
+    if m:
+        return m.group(1)
+    m = re.search(r"Autoriza\w*\s*:?\s*(\d{2}/\d{2}/\d{4})", text, re.I)
+    return m.group(1) if m else None
+
+
+def _tipo_from_text(text: str) -> str | None:
+    low = text.lower()
+    if "colono" in low:
+        return "colonoscopia"
+    if "endoscop" in low:
+        return "endoscopia"
+    return None
+
+
+def extract_guide_fields(pdf_path: str | Path,
+                         tesseract: str | None = None) -> dict:
+    """OCR da 1ª página inteira → extrai guia, nome, data do exame, ano/mês e tipo.
+
+    Usado no cadastro automático. Campos que não forem lidos voltam como None
+    (o operador confirma/edita na tela)."""
+    tesseract = tesseract or find_tesseract()
+    if not tesseract:
+        raise RuntimeError("Tesseract não encontrado. Instale o OCR (ver README).")
+    text = _tesseract_text(_render_page(pdf_path), tesseract)
+
+    data = _data_from_text(text)
+    ano = mes = None
+    if data:
+        d, m, y = data.split("/")
+        ano, mes = y, m
+
+    return {
+        "guia": _guia_from_text(text),
+        "nome": _nome_from_text(text),
+        "data": data,
+        "ano": ano,
+        "mes": mes,
+        "tipo": _tipo_from_text(text),
+    }
+
+
 # --------------------------------------------------------------------------- #
 # Arquivos de entrada
 # --------------------------------------------------------------------------- #

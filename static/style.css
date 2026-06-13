@@ -36,6 +36,9 @@ h3{font-size:20px;font-weight:700;letter-spacing:-.01em;margin:0 0 4px}
 .update-banner{display:flex;align-items:center;gap:14px;background:linear-gradient(90deg,var(--teal-50),#fff);border:1px solid var(--teal-200);border-radius:var(--r-lg);padding:14px 18px;margin-bottom:20px;box-shadow:var(--shadow-sm)}
 .update-banner .ub-ico{width:34px;height:34px;border-radius:50%;background:var(--teal-500);color:#fff;display:grid;place-items:center;font-size:17px;flex:0 0 auto}
 .update-banner .ub-txt{flex:1;color:var(--navy-900)}
+.np-status{margin:8px 0 0;font-size:13px;padding:8px 12px;border-radius:var(--r-sm);background:var(--teal-50);color:var(--teal-600);border:1px solid var(--teal-100)}
+.np-status.lendo{background:var(--navy-50);color:var(--navy-900);border-color:#CBD8E6}
+.np-status.falha{background:var(--warning-50);color:var(--warning);border-color:#EAD3B0}
 .versao-row{display:flex;gap:10px;align-items:center}
 .versao-row input{flex:1}
 

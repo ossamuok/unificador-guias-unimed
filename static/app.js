@@ -357,9 +357,11 @@ function wireEvents() {
   $("#btnNovo").onclick = () => {
     $("#npAno").value = new Date().getFullYear();
     $("#npNome").value = ""; $("#npTipo").value = ""; $("#npFiles").value = "";
+    $("#npStatus").className = "np-status hidden"; $("#npStatus").textContent = "";
     openModal("modalNovo");
   };
   $("#npSalvar").onclick = novoPaciente;
+  $("#npFiles").onchange = lerGuiaAuto;   // lê o doc 1 e pré-preenche
 
   // upload
   $("#upEnviar").onclick = enviarUpload;
@@ -410,6 +412,45 @@ function wireEvents() {
       toast("Pasta base atualizada.", "ok");
     } catch (e) { toast(e.message, "err"); }
   };
+}
+
+function docLeadingInt(name) {
+  const m = (name || "").match(/^\s*0*(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+// Lê o documento 1 selecionado e pré-preenche nome, data(→ano/mês) e tipo.
+async function lerGuiaAuto() {
+  const files = [...$("#npFiles").files];
+  if (!files.length) return;
+  const doc1 = files.find(f => docLeadingInt(f.name) === 1)
+    || files.slice().sort((a, b) => (docLeadingInt(a.name) ?? 99) - (docLeadingInt(b.name) ?? 99))[0];
+  const st = $("#npStatus");
+  st.className = "np-status lendo"; st.textContent = "Lendo dados do documento 1…";
+  try {
+    const fd = new FormData(); fd.append("file", doc1);
+    const r = await api("/api/extrair", { method: "POST", body: fd });
+    const c = r.campos || {};
+    if (c.nome) $("#npNome").value = c.nome;
+    if (c.ano) $("#npAno").value = c.ano;
+    if (c.mes && [...$("#npMes").options].some(o => o.value === c.mes)) $("#npMes").value = c.mes;
+    if (c.tipo) $("#npTipo").value = c.tipo;
+    const ok = [];
+    if (c.nome) ok.push(c.nome);
+    if (c.data) ok.push(c.data);
+    if (c.tipo) ok.push(TIPO_LABEL[c.tipo] || c.tipo);
+    const completo = c.nome && c.data && c.tipo;
+    if (ok.length) {
+      st.className = "np-status";
+      st.textContent = "✓ Lido da guia: " + ok.join(" · ") + (completo ? "" : "  — confira os campos em branco.");
+    } else {
+      st.className = "np-status falha";
+      st.textContent = "Não consegui ler os dados — preencha manualmente.";
+    }
+  } catch (e) {
+    st.className = "np-status falha";
+    st.textContent = "Falha ao ler a guia: " + e.message + " — preencha manualmente.";
+  }
 }
 
 async function novoPaciente() {

@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import webbrowser
 from pathlib import Path
 from threading import Timer
@@ -180,6 +181,28 @@ def api_novo_paciente():
     except ValueError as e:
         return jsonify({"ok": False, "erro": str(e)}), 400
     return jsonify({"ok": True, "paciente": st.to_dict()})
+
+
+@app.post("/api/extrair")
+def api_extrair():
+    """OCR do documento 1 → devolve nome, data do exame, ano/mês, tipo e guia.
+    Recebe 1 PDF (o documento 1 da guia). Usado p/ pré-preencher o cadastro."""
+    f = request.files.get("file")
+    if not f or not (f.filename or "").lower().endswith(".pdf"):
+        return jsonify({"ok": False, "erro": "Envie o documento 1 (PDF)."}), 400
+    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    try:
+        f.save(tmp.name)
+        tmp.close()
+        campos = core.extract_guide_fields(tmp.name)
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"ok": False, "erro": f"Falha ao ler a guia: {e}"}), 500
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+    return jsonify({"ok": True, "campos": campos})
 
 
 @app.post("/api/paciente/apagar")
